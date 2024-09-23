@@ -57,3 +57,14 @@ class ImageHandlerError(Exception):
 
     def __str__(self):
         return f"{self.message}"
+    
+class ImageSummaryHandlerError(Exception):
+    """Raised when the image summary cannot be created. Used for tools requiring image summarisation."""
+    def __init__(self, message, url):
+        self.message = message
+        self.url = url
+        super().__init__(self.message)
+
+    def __str__(self):
+        return f"{self.message}"
+    

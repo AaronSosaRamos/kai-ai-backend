@@ -16,7 +16,7 @@ pypdf
 fpdf
 youtube-transcript-api
 pytube
-
+opencv-python
 unstructured
 python-pptx
 docx2txt
@@ -25,9 +25,13 @@ pandas
 xlrd
 openpyxl
 
+pytubefix
 gdown
-
+google.generativeai
 pytest
 PyPDF2
 python-dotenv
+
 psutil
+typing
+Pillow

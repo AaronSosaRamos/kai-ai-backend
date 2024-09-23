@@ -1,66 +1,52 @@
+
+import os
 import pytest
 from unittest.mock import patch, MagicMock
-from app.services.tool_registry import ToolFile
-from app.features.quizzify.tools import URLLoader, BytesFilePDFLoader, Document  # Adjust the import path as necessary
+from app.features.quizzify.document_loaders import load_docs_youtube_url
 
-@pytest.fixture
-def pdf_loader():
-    return BytesFilePDFLoader
-
-@pytest.fixture
-def url_loader(pdf_loader):
-    return URLLoader(file_loader=pdf_loader, expected_file_type="pdf")
-
-@patch('requests.get')
-def test_load_pdf_from_url(mock_get, url_loader):
+# Mocking necessary components
+@patch('app.features.quizzify.document_loaders.generate_image_summaries')  # Mocking generate_image_summaries
+@patch('app.features.quizzify.document_loaders.extract_image_frames')  # Mocking extract_image_frames
+@patch('app.features.quizzify.document_loaders.YouTube')
+@patch('app.features.quizzify.document_loaders.YoutubeLoader')
+@patch('app.features.quizzify.document_loaders.splitter')
+@patch('app.features.quizzify.document_loaders.shutil.rmtree')
+def test_load_docs_youtube_url(mock_shutil_rmtree, mock_splitter, mock_YoutubeLoader, mock_YouTube, mock_extract_image_frames, mock_generate_image_summaries):
     
-    pdf_file_path = "features/quizzify/tests/test.pdf"
+    # Mocking YouTube video download
+    mock_youtube = MagicMock()
+    mock_youtube.streams.get_highest_resolution.return_value.download.return_value = 'mock_video.mp4'
+    mock_YouTube.return_value = mock_youtube
     
-    with open(pdf_file_path, 'rb') as file:
-        mock_pdf_content = file.read()
-    
-    # Mocking the response of requests.get
-    mock_response = MagicMock()
-    mock_response.status_code = 200
-    mock_response.content = mock_pdf_content
-    mock_get.return_value = mock_response
+    # Mocking YoutubeLoader behavior
+    mock_loader = MagicMock()
+    mock_loader.load.return_value = [{'page_content': 'mock_audio_content', 'metadata': {}}]  # Return a dictionary
+    mock_YoutubeLoader.from_youtube_url.return_value = mock_loader
 
-    # The URL you're testing with (doesn't matter in this case since it's mocked)
-    test_url = "https://example.com/test.pdf"
+    # Mocking document splitting for audio
+    mock_splitter.split_documents.return_value = [{'page_content': 'mock_audio_content', 'metadata': {}}]  # Return a dictionary
 
-    # Assuming your Document class has a simple structure for this example
-    expected_document = Document(page_content="Mock PDF Content", metadata={"source": "pdf", "page_number": 1})
+    # Mocking generate_image_summaries to return dummy image document objects
+    mock_generate_image_summaries.return_value = [
+        {'page_content': "Image summary 1", 'metadata': {"image_url": "mock_image1.jpg"}},
+        {'page_content': "Image summary 2", 'metadata': {"image_url": "mock_image2.jpg"}}
+    ]
 
-    # Run the loader
-    documents = url_loader.load([test_url])
+    # Call the function
+    result = load_docs_youtube_url('mock_youtube_url')
 
-    # Verify the results
-    assert isinstance(documents, list)
-    assert len(documents) == 1
+    # Assertions
+    assert len(result) == 3  # Assuming 2 image docs + 1 audio doc
+    assert result[0]['page_content'] == "Image summary 1"
+    assert result[1]['page_content'] == "Image summary 2"
+    assert result[2]['page_content'] == "mock_audio_content"  # Check the dict key for audio content
 
-@patch('requests.get')
-def test_load_pdf_from_url(mock_get):
-    # Simulate reading a local PDF file or use mock PDF content
-    pdf_file_path = "features/quizzify/tests/test.pdf"
-    with open(pdf_file_path, 'rb') as pdf_file:
-        pdf_content = pdf_file.read()
+    # Ensure generate_image_summaries was called with the correct path
+    mock_generate_image_summaries.assert_called_once_with(os.path.join((os.path.dirname(os.path.abspath("./app"))), "app/features/quizzify/video_data/video_img"))
 
-    # Mocking the response of requests.get to simulate downloading the PDF
-    mock_response = MagicMock()
-    mock_response.status_code = 200
-    mock_response.content = pdf_content
-    mock_get.return_value = mock_response
-
-    # The specific URL you want to test with
-    test_url = "https://firebasestorage.googleapis.com/v0/b/kai-ai-f63c8.appspot.com/o/uploads%2F510f946e-823f-42d7-b95d-d16925293946-Linear%20Regression%20Stat%20Yale.pdf?alt=media&token=caea86aa-c06b-4cde-9fd0-42962eb72ddd"
-    tool_file = ToolFile(url=test_url, filePath = None, filename = None)
-    
-    # Instantiate URLLoader class 
-    url_loader_instance = URLLoader(BytesFilePDFLoader, expected_file_type="pdf")
-
-    # Assuming you have a URL loader or similar functionality in your application
-    documents = url_loader_instance.load([tool_file])
-    
-    # Verify the results
-    assert isinstance(documents, list)
-    assert len(documents) == 1
+    # Additional assertions to verify that mocks were called correctly
+    mock_youtube.streams.get_highest_resolution.assert_called_once()
+    mock_youtube.streams.get_highest_resolution.return_value.download.assert_called_once()
+    mock_loader.load.assert_called_once()
+    mock_splitter.split_documents.assert_called_once()
+    mock_shutil_rmtree.assert_called_once_with('./app/features/quizzify/video_data')

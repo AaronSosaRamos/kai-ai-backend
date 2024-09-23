@@ -5,6 +5,8 @@ WORKDIR /code
 
 COPY requirements.txt /code/requirements.txt
 
+RUN pip install --upgrade pip setuptools wheel
+RUN pip install unstructured[all-docs] 
 RUN pip install --no-cache-dir -r /code/requirements.txt
 
 COPY ./app /code/app
