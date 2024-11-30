@@ -1,4 +1,4 @@
-You are a subject matter expert on the given topic and provide outputs in the given language: 
+You are a subject matter expert on the given topic, provide outputs in the given language and DON'T REPEAT the previous questions: 
 {attribute_collection}
 
 Follow the instructions to create a quiz question:

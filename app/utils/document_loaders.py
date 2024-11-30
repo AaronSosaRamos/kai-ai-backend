@@ -23,6 +23,8 @@ import io
 import os
 import base64
 
+from app.utils.document_loaders_summarization import summarize_transcript_youtube_url
+
 load_dotenv(find_dotenv())
 
 STRUCTURED_TABULAR_FILE_EXTENSIONS = {"csv", "xls", "xlsx", "gsheet", "xml"}
@@ -74,7 +76,10 @@ def get_docs(file_url: str, file_type: str, lang: str = "en", verbose=True):
   
     try:
         file_loader = file_loader_map[FileType(file_type)]
-        if "generate_docs_from_audio_gcloud" in file_loader.__name__:
+        if file_type == "youtube_url":
+            text = summarize_transcript_youtube_url(youtube_url=file_url)
+            docs = [Document(page_content=text)] 
+        elif "generate_docs_from_audio_gcloud" in file_loader.__name__:
             docs = file_loader(file_url, lang, verbose)
         else:
             docs = file_loader(file_url, verbose)
@@ -370,10 +375,11 @@ def load_gpdf_documents(drive_folder_url: str, verbose=False):
 
         return docs
 
-def load_docs_youtube_url(youtube_url: str, verbose=True) -> str:
+def load_docs_youtube_url(youtube_url: str, verbose=True):
     try:
         loader = YoutubeLoader.from_youtube_url(youtube_url, add_video_info=False)
     except Exception as e:
+        logger.error(e)
         logger.error(f"No such video found at {youtube_url}")
         raise VideoTranscriptError(f"No video found", youtube_url) from e
 

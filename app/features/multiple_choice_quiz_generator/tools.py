@@ -46,7 +46,7 @@ def read_text_file(file_path):
 class QuizBuilder:
     def __init__(self, topic, lang='en', vectorstore_class=Chroma, prompt=None, embedding_model=None, model=None, parser=None, verbose=False):
         default_config = {
-            "model": GoogleGenerativeAI(model="gemini-1.0-pro"),
+            "model": GoogleGenerativeAI(model="gemini-1.5-flash"),
             "embedding_model": GoogleGenerativeAIEmbeddings(model='models/embedding-001'),
             "parser": JsonOutputParser(pydantic_object=QuizQuestion),
             "prompt": read_text_file("prompt/multiple_choice_quiz_generator_prompt.txt"),
@@ -126,13 +126,16 @@ class QuizBuilder:
         generated_questions = []
         attempts = 0
         max_attempts = num_questions * 5  # Allow for more attempts to generate questions
+        previous_questions = ""
 
         while len(generated_questions) < num_questions and attempts < max_attempts:
-            response = chain.invoke(f"Topic: {self.topic}, Lang: {self.lang}")
+            response = chain.invoke(f"Topic: {self.topic}, Lang: {self.lang}, Previous Questions: {previous_questions}")
             if self.verbose:
                 logger.info(f"Generated response attempt {attempts + 1}: {response}")
 
             response = transform_json_dict(response)
+            previous_questions += response["question"] + ", "
+            print(previous_questions)
             # Directly check if the response format is valid
             if self.validate_response(response):
                 response["choices"] = self.format_choices(response["choices"])
@@ -165,23 +168,3 @@ class QuizQuestion(BaseModel):
     choices: List[QuestionChoice] = Field(description="A list of choices for the question, each with a key and a value")
     answer: str = Field(description="The key of the correct answer from the choices list")
     explanation: str = Field(description="An explanation of why the answer is correct")
-
-    model_config = {
-        "json_schema_extra": {
-            "examples": """ 
-                {
-                "question": "What is the capital of France?",
-                "choices": [
-                    {"key": "A", "value": "Berlin"},
-                    {"key": "B", "value": "Madrid"},
-                    {"key": "C", "value": "Paris"},
-                    {"key": "D", "value": "Rome"}
-                ],
-                "answer": "C",
-                "explanation": "Paris is the capital of France."
-              }
-          """
-        }
-
-      }
-

@@ -1,3 +1,4 @@
+from typing import List
 from langchain_core.documents import Document
 from langchain_community.document_loaders.csv_loader import CSVLoader
 from langchain_community.document_loaders import (
@@ -34,7 +35,7 @@ STRUCTURED_TABULAR_FILE_EXTENSIONS = {"csv", "xls", "xlsx", "gsheet", "xml"}
 logger = setup_logger(__name__)
 
 # AI Model
-model = GoogleGenerativeAI(model="gemini-1.0-pro")
+model = GoogleGenerativeAI(model="gemini-1.5-flash")
 
 splitter = RecursiveCharacterTextSplitter(
     chunk_size = 1000,
@@ -69,28 +70,27 @@ def get_summary(file_url: str, file_type: str, verbose=False):
 
 def generate_flashcards(summary: str, lang:str, verbose=False) -> list:
     # Receive the summary from the map reduce chain and generate flashcards
-    parser = JsonOutputParser(pydantic_object=Flashcard)
+    parser = JsonOutputParser(pydantic_object=FlashcardList)
     
     if verbose: logger.info(f"Beginning to process flashcards from summary")
     
     template = read_text_file(r"prompt/flashcards-generator-prompt.txt")
-    examples = read_text_file(r"prompt/examples.txt")
     
     cards_prompt = PromptTemplate(
         template=template,
-        input_variables=["summary", "examples", "lang"],
+        input_variables=["summary", "lang"],
         partial_variables={"format_instructions": parser.get_format_instructions()}
     )
     
     cards_chain = cards_prompt | model | parser
-    
+
     try:
-        response = cards_chain.invoke({"summary": summary, "examples": examples, "lang": lang})
+        response = cards_chain.invoke({"summary": summary, "lang": lang})
     except Exception as e:
         logger.error(f"Failed to generate flashcards: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to generate flashcards from LLM")
     
-    return response
+    return response['flashcardList']
 
 def read_text_file(file_path):
     # Get the directory containing the script file
@@ -489,3 +489,6 @@ def generate_concepts_from_img(img_url, lang):
 class Flashcard(BaseModel):
     concept: str = Field(description="The concept of the flashcard")
     definition: str = Field(description="The definition of the flashcard")
+
+class FlashcardList(BaseModel):
+    flashcardList: List[Flashcard] = Field(description="The list of flashcards. It must have a minimum of 5.")
