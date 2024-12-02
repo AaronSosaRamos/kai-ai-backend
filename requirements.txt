@@ -14,7 +14,7 @@ firebase-admin
 chroma
 pypdf
 fpdf
-youtube-transcript-api
+youtube-transcript-api==0.6.2
 pytube
 
 unstructured

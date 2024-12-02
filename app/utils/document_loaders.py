@@ -1,4 +1,12 @@
-from langchain_community.document_loaders import YoutubeLoader, PyPDFLoader, TextLoader, UnstructuredURLLoader, UnstructuredPowerPointLoader, Docx2txtLoader, UnstructuredExcelLoader, UnstructuredXMLLoader
+from langchain_community.document_loaders import (
+    PyPDFLoader, 
+    TextLoader, 
+    UnstructuredURLLoader, 
+    UnstructuredPowerPointLoader, 
+    Docx2txtLoader, 
+    UnstructuredExcelLoader, 
+    UnstructuredXMLLoader
+)
 from langchain_community.document_loaders.csv_loader import CSVLoader
 from langchain_google_genai import ChatGoogleGenerativeAI
 from app.utils.allowed_file_extensions import FileType
@@ -22,8 +30,8 @@ import shutil
 import io
 import os
 import base64
-
-from app.utils.document_loaders_summarization import summarize_transcript_youtube_url
+import re
+from youtube_transcript_api import YouTubeTranscriptApi
 
 load_dotenv(find_dotenv())
 
@@ -47,6 +55,20 @@ def read_text_file(file_path):
 
     with open(absolute_file_path, 'r') as file:
         return file.read()
+    
+def extract_youtube_video_id(url):
+    pattern = (
+        r'(?:https?://)?(?:www\.)?(?:youtube\.com/watch\?v=|youtu\.be/)'  
+        r'([\w-]{11})' 
+    )
+    match = re.search(pattern, url)
+    return match.group(1) if match else None    
+
+def concatenate_texts(dict_list):
+    return ' '.join(d.get('text', '') for d in dict_list if 'text' in d)
+
+def create_documents_from_strings(strings):
+    return [Document(page_content=text) for text in strings]
 
 def get_docs(file_url: str, file_type: str, lang: str = "en", verbose=True):
     file_type = file_type.lower()
@@ -76,10 +98,7 @@ def get_docs(file_url: str, file_type: str, lang: str = "en", verbose=True):
   
     try:
         file_loader = file_loader_map[FileType(file_type)]
-        if file_type == "youtube_url":
-            text = summarize_transcript_youtube_url(youtube_url=file_url)
-            docs = [Document(page_content=text)] 
-        elif "generate_docs_from_audio_gcloud" in file_loader.__name__:
+        if "generate_docs_from_audio_gcloud" in file_loader.__name__:
             docs = file_loader(file_url, lang, verbose)
         else:
             docs = file_loader(file_url, verbose)
@@ -377,27 +396,19 @@ def load_gpdf_documents(drive_folder_url: str, verbose=False):
 
 def load_docs_youtube_url(youtube_url: str, verbose=True):
     try:
-        loader = YoutubeLoader.from_youtube_url(youtube_url, add_video_info=False)
+        transcript = concatenate_texts(YouTubeTranscriptApi.get_transcript(extract_youtube_video_id(youtube_url)))
+        generated_docs = create_documents_from_strings(splitter.split_text(transcript))
+        if verbose:
+            logger.info(f"Found video")
+            logger.info(generated_docs)
+            logger.info(f"Combined documents into a single string.")
+            logger.info(f"Beginning to process transcript...")
     except Exception as e:
         logger.error(e)
-        logger.error(f"No such video found at {youtube_url}")
-        raise VideoTranscriptError(f"No video found", youtube_url) from e
-
-    try:
-        docs = loader.load()
-        
-    except Exception as e:
         logger.error(f"Video transcript might be private or unavailable in 'en' or the URL is incorrect.")
         raise VideoTranscriptError(f"No video transcripts available", youtube_url) from e
     
-    if verbose:
-        logger.info(f"Found video")
-        logger.info(f"Combined documents into a single string.")
-        logger.info(f"Beginning to process transcript...")
-
-    split_docs = splitter.split_documents(docs)
-
-    return split_docs
+    return generated_docs
 
 llm_for_img = ChatGoogleGenerativeAI(model="gemini-1.5-flash")
 

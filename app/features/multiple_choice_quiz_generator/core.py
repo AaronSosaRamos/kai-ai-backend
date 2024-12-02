@@ -2,8 +2,6 @@ from app.utils.document_loaders import get_docs
 from app.services.logger import setup_logger
 from app.features.multiple_choice_quiz_generator.tools import QuizBuilder
 from app.api.error_utilities import LoaderError, ToolExecutorError
-from app.utils.document_loaders_summarization import summarize_transcript_youtube_url
-from langchain_core.documents import Document
 
 logger = setup_logger()
 

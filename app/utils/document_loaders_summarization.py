@@ -23,7 +23,13 @@ import tempfile
 import uuid
 import requests
 import gdown
+from youtube_transcript_api import YouTubeTranscriptApi
 
+from app.utils.document_loaders import (
+    concatenate_texts, 
+    create_documents_from_strings, 
+    extract_youtube_video_id
+)
 STRUCTURED_TABULAR_FILE_EXTENSIONS = {"csv", "xls", "xlsx", "gsheet", "xml"}
 
 logger = setup_logger(__name__)
@@ -374,20 +380,13 @@ def load_gpdf_documents(drive_folder_url: str, verbose=False):
 
 def summarize_transcript_youtube_url(youtube_url: str, max_video_length=600, verbose=False) -> str:
     try:
-        loader = YoutubeLoader.from_youtube_url(youtube_url, add_video_info=False)
+        transcript = concatenate_texts(YouTubeTranscriptApi.get_transcript(extract_youtube_video_id(youtube_url)))
+        generated_docs = create_documents_from_strings(splitter.split_text(transcript))
     except Exception as e:
         logger.error(f"No such video found at {youtube_url}")
         raise VideoTranscriptError(f"No video found", youtube_url) from e
 
-    try:
-        docs = loader.load()
-    except Exception as e:
-        logger.error(f"Video transcript might be private or unavailable in 'en' or the URL is incorrect.")
-        raise VideoTranscriptError(f"No video transcripts available", youtube_url) from e
-
-    split_docs = splitter.split_documents(docs)
-
-    full_transcript = [doc.page_content for doc in split_docs]
+    full_transcript = [doc.page_content for doc in generated_docs]
     full_transcript = " ".join(full_transcript)
 
     if verbose:
@@ -402,7 +401,10 @@ def summarize_transcript_youtube_url(youtube_url: str, max_video_length=600, ver
 
     chain = summarize_prompt | summarize_model 
 
-    return chain.invoke(full_transcript)
+    result = chain.invoke({"full_transcript": full_transcript})
+    logger.info(f"Generated summary: {result}")
+
+    return result
 
 file_loader_map = {
     FileType.PDF: load_pdf_documents,
