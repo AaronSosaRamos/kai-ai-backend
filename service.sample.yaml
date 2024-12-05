@@ -1,0 +1,18 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: marvel-ai-backend-sandbox
+spec:
+  template:
+    spec:
+      containers:
+        - image: us-central1-docker.pkg.dev/kai-platform-sandbox/marvel-ai-backend-sandbox/marvel-ai-backend-sandbox:latest
+          env:
+            - name: ENV_TYPE
+              value: 
+            - name: GOOGLE_API_KEY
+              value: 
+            - name: GCP_PROJECT_ID
+              value: 
+          ports:
+            - containerPort: 8000

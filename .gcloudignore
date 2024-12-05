@@ -12,3 +12,6 @@ README.md
 app/__pycache__/
 __pycache__/
 /env
+
+devcontainer.env
+service.yaml
