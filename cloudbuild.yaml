@@ -1,0 +1,5 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-f', 'Dockerfile.prod', '-t', 'us-central1-docker.pkg.dev/kai-ai-f63c8/marvel-ai-backend/marvel-ai-backend:latest', '.']
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'us-central1-docker.pkg.dev/kai-ai-f63c8/marvel-ai-backend/marvel-ai-backend:latest']

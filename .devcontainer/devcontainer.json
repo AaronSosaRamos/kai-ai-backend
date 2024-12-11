@@ -1,0 +1,25 @@
+{
+    "name": "Marvel AI Backend (main)",
+    "build": {
+        "dockerfile": "../Dockerfile.dev"
+    },
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-python.python",
+                "ms-python.vscode-pylance",
+                "ms-python.black-formatter",
+                "ms-python.debugpy",
+                "ms-azuretools.vscode-docker",
+                "tiangolo.fastapi"
+            ],
+            "settings": {}
+        }
+    },
+    "forwardPorts": [
+        "8000:8000"
+    ],
+    "workspaceMount": "source=${localWorkspaceFolder},target=/code,type=bind,consistency=delegated",
+    "workspaceFolder": "/code",
+    "runArgs": ["--env-file",".devcontainer/devcontainer.env"]
+}
