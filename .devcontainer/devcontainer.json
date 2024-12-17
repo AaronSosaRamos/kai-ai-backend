@@ -1,5 +1,5 @@
 {
-    "name": "Marvel AI Backend",
+    "name": "Marvel AI Backend Sandbox",
     "build": {
         "dockerfile": "../Dockerfile.dev"
     },
